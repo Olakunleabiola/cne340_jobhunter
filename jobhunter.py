@@ -19,9 +19,7 @@ def create_tables(cursor):
     # Creates table
     # Must set Title to CHARSET utf8 unicode Source: http://mysql.rjweb.org/doc.php/charcoll.
     # Python is in latin-1 and error (Incorrect string value: '\xE2\x80\xAFAbi...') will occur if Description is not in unicode format due to the json data
-    cursor.execute('''CREATE TABLE IF NOT EXISTS jobs (id INT PRIMARY KEY auto_increment, Job_id varchar(50) , 
-    company varchar (300), Created_at DATE, url varchar(30000), Title LONGBLOB CHARSET utf8 , Description LONGBLOB ); ''')
-    return
+    cursor.execute('''CREATE TABLE IF NOT EXISTS jobs(id INT PRIMARY KEY auto_increment, Job_id varchar(50), company varchar (300), Created_at DATE, url varchar(30000), Title LONGBLOB, Description LONGBLOB );''')
 
 
 # Query the database.
@@ -33,27 +31,29 @@ def query_sql(cursor, query):
 
 # Add a new job
 def add_new_job(cursor, jobdetails):
+    # print(jobdetails)
     # extract all required columns
-    description = html2text.html2text(jobdetails['description'])
+    job_id = jobdetails['id']
+    company = jobdetails["company_name"]
     date = jobdetails['publication_date'][0:10]
-    query = cursor.execute("INSERT INTO jobs( Description, Created_at " ") "
-               "VALUES(%s,%s)", (  description, date))
+    url = jobdetails["url"]
+    title = jobdetails["title"]
+    description = html2text.html2text(jobdetails['description'])
+    query = cursor.execute("INSERT INTO jobs(Job_id, company, Created_at, url, Title, Description) VALUES(%s, %s, %s, %s, %s, %s)", (job_id, company, date, url, title, description))
      # %s is what is needed for Mysqlconnector as SQLite3 uses ? the Mysqlconnector uses %s
     return query_sql(cursor, query)
 
 
 # Check if new job
 def check_if_job_exists(cursor, jobdetails):
-    job_id = jobdetails['job_id'] ##Add your code here
-    query = "SELECT * FROM jobs WHERE id = 1834482"
-    query = "UPDATE"
+    job_id = jobdetails['id']
+    query = "SELECT * FROM jobs WHERE Job_id = \"%s\"" % job_id
     return query_sql(cursor, query)
 
 # Deletes job
 def delete_job(cursor, jobdetails):
-    job_id = jobdetails['job_id']  ##Add your code here
-    query = "DELETE FROM jobs WHERE id = 1834482"
-    query = "UPDATE"
+    job_id = jobdetails['id']
+    query = "DELETE FROM jobs WHERE Job_id = \"%s\"" % job_id
     return query_sql(cursor, query)
 
 
@@ -75,17 +75,18 @@ def jobhunt(cursor):
 
 
 def add_or_delete_job(jobpage, cursor):
+    print("checking for jobs\n")
     # Add your code here to parse the job page
     for jobdetails in jobpage['jobs']:  # EXTRACTS EACH JOB FROM THE JOB LIST. It errored out until I specified jobs. This is because it needs to look at the jobs dictionary from the API. https://careerkarma.com/blog/python-typeerror-int-object-is-not-iterable/
         # Add in your code here to check if the job already exists in the DB
         check_if_job_exists(cursor, jobdetails)
         is_job_found = len(cursor.fetchall()) > 0 # https://stackoverflow.com/questions/2511679/python-number-of-rows-affected-by-cursor-executeselect
         if is_job_found:
-            print("Job is found: " + jobdetails["job_id"] + " from " + jobdetails["title"])
-
+            print("Job already found: " + str(jobdetails["id"]) + " from " + jobdetails["title"])
         else:
-            print("New job is found: " + jobdetails["job_id"] + " from " + jobdetails["title"])
+            print("New job is found: " + str(jobdetails["id"]) + " from " + jobdetails["title"])
             add_new_job(cursor, jobdetails)
+    print("\nfinished checking for jobs")
 
 
 
@@ -100,7 +101,7 @@ def main():
 
     while (1):  # Infinite Loops. Only way to kill it is to crash or manually crash it. We did this as a background process/passive scraper
         jobhunt(cursor)
-        time.sleep(14400)  # Sleep for 1h, this is ran every hour because API or web interfaces have request limits. Your reqest will get blocked.
+        time.sleep(14400)  # Sleep for 4h, this is ran every hour because API or web interfaces have request limits. Your reqest will get blocked.
 
 
 # Sleep does a rough cycle count, system is not entirely accurate
